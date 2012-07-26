@@ -1,0 +1,173 @@
+user { 'test':
+  ensure     => present,
+  uid        => '10000',
+  gid        => 'admin',
+  shell      => '/bin/zsh',
+  home       => '/home/test',
+  managehome => true,
+}
+
+puppet resource user dave ensure=present shell="/bin/bash" home="/home/dave" managehome=true
+
+-------------
+
+file {'/tmp/test1':
+  ensure  => present,
+  content => "Hi.",
+}
+
+file {'/tmp/test2':
+  ensure => directory,
+  mode   => 0644,
+}
+
+file {'/tmp/test3':
+  ensure => link,
+  target => '/tmp/test1',
+}
+
+notify {"I'm notifying you.":} # Whitespace is fungible, remember.
+notify {"So am I!":}
+
+------------
+
+file {'/tmp/test1':
+  ensure  => present,
+  content => 'Hi!',
+}
+
+notify {'/tmp/test1 has already been synced.':
+  require => File['/tmp/test1']
+}
+
+-------------
+
+file {'/tmp/test1':
+  ensure  => present,
+  content => 'Hi!',
+  before  => Notify['/tmp/test1 has already been synced.'],
+}
+
+notify{'/tmp/test1 has already been synced.':}
+
+--------------
+
+file {'/tmp/test1':
+  ensure  => present,
+  content => 'Hi!',
+}
+
+notify {'after':
+  message => '/tmp/test1 has already been synced.',
+}
+
+File['/tmp/test1'] -> Notify['after']
+
+-------------
+
+file { '/tmp/test4':
+  ensure => file,
+  mode   => 600,
+  source => '/root/test4',
+}
+
+-------------
+
+package { 'htop'
+  ensure => present,
+}
+
+-------------
+
+package { 'openssh-server':
+  ensure => present,
+  before => File['/etc/ssh/sshd_config'],
+}
+
+file { '/etc/ssh/sshd_config':
+  ensure => file,
+  mode   => 600,
+  source => '/root/learning-manifests/sshd_config',
+}
+
+service { 'sshd':
+  ensure     => running,
+  enable     => true,
+  hasrestart => true,
+  hasstatus  => true,
+  subscribe  => File['/etc/ssh/sshd_config'],
+}
+
+-------------
+
+$long_thing = "...."
+
+file { '/tmp/test5':
+  content => $long_thing
+}
+
+-------------
+
+facter
+
+host { 'self':
+  ensure       => present,
+  name         => $fqdn,
+  host_aliases => ['puppet', $hostname],
+  ip           => $ipaddress,
+}
+
+-------------
+
+if $is_virtual == 'true' {
+  notify{'this is a virtual machine':}
+  service {'ntpd':
+    ensure => stopped,
+    enable => false,
+  }
+}
+else {
+  # 'false' is undef, '', false
+  service { 'ntpd':
+    name       => 'ntpd',
+    ensure     => running,
+    enable     => true,
+    hasrestart => true,
+    require    => Package['ntp'],
+  }
+}
+
+--------------
+
+case $operatingsystem {
+  centos: { $apache = 'httpd' }
+  redhat: { $apache = 'httpd' }
+  debian: { $apache = 'apache2' }
+  ubuntu: { $apache = 'apache2' }
+  default: { fail{'Unrecognized operating system for webserver') }
+}
+package{'apache':
+  name   => $apache,
+  ensure => latest,
+}
+
+--------------
+
+case $operatingsystem {
+  centos, redhat: { $apache = "httpd" }
+  debian, ubuntu: { $apache = "apache2" }
+  default: { fail("Unrecognized operating system for webserver") }
+}
+
+--------------
+
+$apache = $operatingsystem ? {
+  centos                => 'httpd',
+  redhat                => 'httpd',
+  /(?i)(ubuntu|debian)/ => "apache2-$1",
+  default               => undef,
+}
+
+--------------
+
+classes and nodes
